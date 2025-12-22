@@ -13,8 +13,7 @@
 			"port": 13337
 		},
 		"./filebrowser": {
-			"folder": "${containerWorkspaceFolder}",
-			"port": "13339"
+			"folder": "${containerWorkspaceFolder}"
 		}
 	},
 
@@ -87,12 +86,12 @@
 
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	"forwardPorts": [
-		8000,   // PHP built-in server
-		8080,   // Apache
-		3306,   // MariaDB
-		8081,   // phpMyAdmin
-		13337,  // code-server
-		13339   // filebrowser
+		8000,
+		8080,
+		3306,
+		8081,
+		13337,
+		13339
 	],
 	"portsAttributes": {
 		"8000": {
@@ -119,11 +118,8 @@
 			"label": "File Browser",
 			"onAutoForward": "silent"
 		}
-	}
+	},
 
-	// Use 'postCreateCommand' to run commands after the container is created.
-	// "postCreateCommand": "sudo chmod a+x \"$(pwd)\" && sudo rm -rf /var/www/html && sudo ln -s \"$(pwd)\" /var/www/html"
-
-	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
-	// "remoteUser": "root"
+	"postCreateCommand": ["./.devcontainer/scripts/post_create.sh"],
+	"postStartCommand": ["./.devcontainer/scripts/post_start.sh"]
 }
