@@ -3,25 +3,23 @@
 set -euo pipefail
 
 BOLD='\033[0;1m'
-RESET='\033[0m'
 
-printf "%sInstalling filebrowser%s\n\n" "${BOLD}" "${RESET}"
+printf "%sInstalling filebrowser\n\n" "${BOLD}"
 
 # Check if filebrowser is installed.
 if ! command -v filebrowser &>/dev/null; then
-	VERSION="v2.31.2"
+	VERSION="v2.42.1"
 
 	# Detect architecture
-	ARCH=$(uname -m)
+	ARCH=$(dpkg --print-architecture 2>/dev/null || uname -m)
 	case "${ARCH}" in
-		x86_64)
+		amd64|x86_64)
 			ARCH_NAME="amd64"
+			EXPECTED_HASH="7d83c0f077df10a8ec9bfd9bf6e745da5d172c3c768a322b0e50583a6bc1d3cc"
 			;;
-		aarch64|arm64)
+		arm64|aarch64)
 			ARCH_NAME="arm64"
-			;;
-		armv7l)
-			ARCH_NAME="armv7"
+			EXPECTED_HASH="5b8a8cf94c79e717fba1504640515492ee36e1ada6dcfb7fed937e5cf3632259"
 			;;
 		*)
 			echo "Unsupported architecture: ${ARCH}"
@@ -29,52 +27,44 @@ if ! command -v filebrowser &>/dev/null; then
 			;;
 	esac
 
-	DOWNLOAD_URL="https://github.com/filebrowser/filebrowser/releases/download/${VERSION}/linux-${ARCH_NAME}-filebrowser.tar.gz"
-
-	echo "Downloading filebrowser for ${ARCH_NAME}..."
-	curl -fsSL "${DOWNLOAD_URL}" -o /tmp/filebrowser.tar.gz
+	curl -fsSL "https://github.com/filebrowser/filebrowser/releases/download/${VERSION}/linux-${ARCH_NAME}-filebrowser.tar.gz" -o /tmp/filebrowser.tar.gz
+	echo "${EXPECTED_HASH} /tmp/filebrowser.tar.gz" | sha256sum -c
 	tar -xzf /tmp/filebrowser.tar.gz -C /tmp
 	sudo mv /tmp/filebrowser /usr/local/bin/
 	sudo chmod +x /usr/local/bin/filebrowser
 	rm /tmp/filebrowser.tar.gz
-	echo "filebrowser binary installed successfully"
 fi
 
-# Create entrypoint script
-sudo tee /usr/local/bin/filebrowser-entrypoint > /dev/null <<'ENTRYPOINT'
+# Create entrypoint.
+cat >/usr/local/bin/filebrowser-entrypoint <<EOF
 #!/usr/bin/env bash
 
-# Get port from environment or use default
-FB_PORT="${PORT:-13339}"
-FB_FOLDER="${FOLDER:-}"
-FB_FOLDER="${FB_FOLDER:-$(pwd)}"
-FB_BASEURL="${BASEURL:-}"
-LOG_PATH="/tmp/filebrowser.log"
-export FB_DATABASE="${HOME}/.filebrowser.db"
+PORT="${PORT}"
+FOLDER="${FOLDER:-}"
+FOLDER="\${FOLDER:-\$(pwd)}"
+BASEURL="${BASEURL:-}"
+LOG_PATH=/tmp/filebrowser.log
+export FB_DATABASE="\${HOME}/.filebrowser.db"
 
-printf "Configuring filebrowser...\n"
-printf "Port: %s\n" "${FB_PORT}"
-printf "Folder: %s\n" "${FB_FOLDER}"
+printf "Configuring filebrowser\n\n"
 
-# Initialize database if it doesn't exist
-if [[ ! -f "${FB_DATABASE}" ]]; then
-	printf "Initializing filebrowser database...\n"
-	filebrowser config init >> "${LOG_PATH}" 2>&1 || true
-	filebrowser users add admin "" --perm.admin=true --viewMode=mosaic >> "${LOG_PATH}" 2>&1 || true
+# Check if filebrowser db exists.
+if [[ ! -f "\${FB_DATABASE}" ]]; then
+	filebrowser config init >>\${LOG_PATH} 2>&1
+	filebrowser users add admin "" --perm.admin=true --viewMode=mosaic >>\${LOG_PATH} 2>&1
 fi
 
-# Configure filebrowser
-filebrowser config set --baseurl="${FB_BASEURL}" --port="${FB_PORT}" --auth.method=noauth --root="${FB_FOLDER}" >> "${LOG_PATH}" 2>&1
+filebrowser config set --baseurl=\${BASEURL} --port=\${PORT} --auth.method=noauth --root=\${FOLDER} >>\${LOG_PATH} 2>&1
 
-printf "Starting filebrowser...\n"
-printf "Serving %s at http://localhost:%s\n" "${FB_FOLDER}" "${FB_PORT}"
+printf "Starting filebrowser...\n\n"
 
-# Start filebrowser in foreground first to ensure it works, then background
-nohup filebrowser >> "${LOG_PATH}" 2>&1 &
+printf "Serving \${FOLDER} at http://localhost:\${PORT}\n\n"
 
-printf "Filebrowser started. Logs at %s\n\n" "${LOG_PATH}"
-ENTRYPOINT
+filebrowser >>\${LOG_PATH} 2>&1 &
 
-sudo chmod +x /usr/local/bin/filebrowser-entrypoint
+printf "Logs at \${LOG_PATH}\n\n"
+EOF
 
-printf "%sInstallation complete!%s\n\n" "${BOLD}" "${RESET}"
+chmod +x /usr/local/bin/filebrowser-entrypoint
+
+printf "Installation complete!\n\n"
