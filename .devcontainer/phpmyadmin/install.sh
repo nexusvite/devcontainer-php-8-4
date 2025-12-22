@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+BOLD='\033[0;1m'
+RESET='\033[0m'
+
+printf "%sInstalling phpMyAdmin%s\n\n" "${BOLD}" "${RESET}"
+
+# phpMyAdmin version
+VERSION="5.2.1"
+INSTALL_DIR="/opt/phpmyadmin"
+
+# Check if phpMyAdmin is already installed
+if [ ! -d "${INSTALL_DIR}" ]; then
+    echo "Downloading phpMyAdmin ${VERSION}..."
+
+    # Download phpMyAdmin
+    curl -fsSL "https://files.phpmyadmin.net/phpMyAdmin/${VERSION}/phpMyAdmin-${VERSION}-all-languages.tar.gz" -o /tmp/phpmyadmin.tar.gz
+
+    # Extract
+    sudo mkdir -p ${INSTALL_DIR}
+    sudo tar -xzf /tmp/phpmyadmin.tar.gz -C ${INSTALL_DIR} --strip-components=1
+
+    # Create tmp directory for phpMyAdmin
+    sudo mkdir -p ${INSTALL_DIR}/tmp
+    sudo chmod 777 ${INSTALL_DIR}/tmp
+
+    # Clean up
+    rm /tmp/phpmyadmin.tar.gz
+
+    echo "phpMyAdmin installed to ${INSTALL_DIR}"
+fi
+
+# Create configuration file
+sudo tee ${INSTALL_DIR}/config.inc.php > /dev/null <<'PHPCONFIG'
+<?php
+$cfg['blowfish_secret'] = 'devcontainer-phpmyadmin-secret-key-32ch';
+
+$i = 0;
+$i++;
+
+$cfg['Servers'][$i]['host'] = getenv('PMA_HOST') ?: 'localhost';
+$cfg['Servers'][$i]['port'] = getenv('PMA_PORT') ?: '3306';
+$cfg['Servers'][$i]['auth_type'] = 'cookie';
+$cfg['Servers'][$i]['AllowNoPassword'] = true;
+$cfg['Servers'][$i]['compress'] = false;
+
+$cfg['TempDir'] = '/opt/phpmyadmin/tmp';
+$cfg['UploadDir'] = '';
+$cfg['SaveDir'] = '';
+PHPCONFIG
+
+# Create entrypoint script
+cat | sudo tee /usr/local/bin/phpmyadmin-entrypoint > /dev/null <<EOF
+#!/usr/bin/env bash
+
+PORT="${PORT:-8081}"
+DB_HOST="${DBHOST:-localhost}"
+DB_PORT="${DBPORT:-3306}"
+LOG_PATH=/tmp/phpmyadmin.log
+INSTALL_DIR="/opt/phpmyadmin"
+
+export PMA_HOST="\${DB_HOST}"
+export PMA_PORT="\${DB_PORT}"
+
+printf "Starting phpMyAdmin...\n"
+printf "Port: %s\n" "\${PORT}"
+printf "Database Host: %s:%s\n" "\${DB_HOST}" "\${DB_PORT}"
+
+# Start PHP built-in server for phpMyAdmin
+cd \${INSTALL_DIR}
+nohup php -S 0.0.0.0:\${PORT} >> "\${LOG_PATH}" 2>&1 &
+
+printf "phpMyAdmin started at http://localhost:%s\n" "\${PORT}"
+printf "Logs at %s\n\n" "\${LOG_PATH}"
+EOF
+
+sudo chmod +x /usr/local/bin/phpmyadmin-entrypoint
+
+printf "%sInstallation complete!%s\n\n" "${BOLD}" "${RESET}"

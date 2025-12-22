@@ -14,6 +14,11 @@
 		},
 		"./filebrowser": {
 			"folder": "${containerWorkspaceFolder}"
+		},
+		"./phpmyadmin": {
+			"port": "8081",
+			"dbHost": "localhost",
+			"dbPort": "3306"
 		}
 	},
 
@@ -76,6 +81,18 @@
 					"order": 5,
 					"healthCheck": {
 						"url": "http://${localEnv:FEATURE_FILEBROWSER_OPTION_HOST:127.0.0.1}:${localEnv:FEATURE_FILEBROWSER_OPTION_PORT:13339}/health",
+						"interval": 5,
+						"threshold": 2
+					}
+				},
+				{
+					"slug": "phpmyadmin",
+					"displayName": "phpMyAdmin",
+					"url": "http://${localEnv:FEATURE_PHPMYADMIN_OPTION_HOST:127.0.0.1}:${localEnv:FEATURE_PHPMYADMIN_OPTION_PORT:8081}",
+					"icon": "/icon/database.svg",
+					"order": 6,
+					"healthCheck": {
+						"url": "http://${localEnv:FEATURE_PHPMYADMIN_OPTION_HOST:127.0.0.1}:${localEnv:FEATURE_PHPMYADMIN_OPTION_PORT:8081}",
 						"interval": 5,
 						"threshold": 2
 					}

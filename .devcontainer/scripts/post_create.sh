@@ -4,9 +4,9 @@ set -e
 
 echo "Running post-create setup..."
 
-# Ensure filebrowser entrypoint is executable
+# Ensure filebrowser entrypoint is executable (use sudo since file is owned by root)
 if [ -f /usr/local/bin/filebrowser-entrypoint ]; then
-    chmod +x /usr/local/bin/filebrowser-entrypoint
+    sudo chmod +x /usr/local/bin/filebrowser-entrypoint 2>/dev/null || true
 fi
 
 # Copy SSH keys from host if available
