@@ -28,28 +28,33 @@ FOLDER="${FOLDER:-}"
 FOLDER="\${FOLDER:-\$(pwd)}"
 BASEURL="${BASEURL:-}"
 LOG_PATH=/tmp/filebrowser.log
-export FB_DATABASE="\${HOME}/.filebrowser.db"
+
+# Use a fixed database path to avoid HOME variable issues
+export FB_DATABASE="/tmp/filebrowser.db"
 
 printf "Configuring filebrowser\n\n"
+printf "Database: \${FB_DATABASE}\n"
+printf "Port: \${PORT}\n"
+printf "Folder: \${FOLDER}\n"
 
 # IMPORTANT: Always remove existing database to ensure noauth works properly
-# The noauth setting only takes effect on fresh database initialization
-if [[ -f "\${FB_DATABASE}" ]]; then
-	printf "Removing existing filebrowser database to reconfigure...\n"
-	rm -f "\${FB_DATABASE}"
-fi
+rm -f "\${FB_DATABASE}"
 
-# Initialize fresh database with noauth from the start
-filebrowser config init --auth.method=noauth >>\${LOG_PATH} 2>&1
+# Initialize database first (without auth flag - it's not supported on init)
+filebrowser config init >>\${LOG_PATH} 2>&1
+
+# Add default admin user with empty password
 filebrowser users add admin "" --perm.admin=true --viewMode=mosaic >>\${LOG_PATH} 2>&1
-filebrowser config set --baseurl=\${BASEURL} --port=\${PORT} --auth.method=noauth --root=\${FOLDER} >>\${LOG_PATH} 2>&1
+
+# Now set the config with noauth - this is the correct way
+filebrowser config set --auth.method=noauth >>\${LOG_PATH} 2>&1
+filebrowser config set --baseurl="\${BASEURL}" --port=\${PORT} --root="\${FOLDER}" >>\${LOG_PATH} 2>&1
 
 printf "Starting filebrowser...\n\n"
-
 printf "Serving \${FOLDER} at http://localhost:\${PORT}\n\n"
 
-# Start with FB_NOAUTH=true for extra safety
-FB_NOAUTH=true filebrowser >>\${LOG_PATH} 2>&1 &
+# Start filebrowser (noauth is already set in config)
+filebrowser >>\${LOG_PATH} 2>&1 &
 
 printf "Logs at \${LOG_PATH}\n\n"
 EOF
