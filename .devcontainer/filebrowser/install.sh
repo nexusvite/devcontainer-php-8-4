@@ -30,38 +30,33 @@ cat >/usr/local/bin/filebrowser-entrypoint <<EOF
 PORT="${PORT}"
 FOLDER="${FOLDER:-}"
 FOLDER="\${FOLDER:-\$(pwd)}"
-BASEURL="${BASEURL:-}"
 LOG_PATH=/tmp/filebrowser.log
 DB_PATH=/var/lib/filebrowser/filebrowser.db
 
 printf "Configuring filebrowser\n\n"
 
-# Only initialize if database doesn't exist
-if [[ ! -f "\${DB_PATH}" ]]; then
-    printf "Initializing new filebrowser database...\n"
+# Always start fresh - delete old database
+rm -f "\${DB_PATH}" 2>/dev/null || true
 
-    # Initialize database
-    filebrowser config init --database="\${DB_PATH}"
-
-    # Configure settings
-    filebrowser config set --database="\${DB_PATH}" --address=0.0.0.0 --port=\${PORT} --root=\${FOLDER} --auth.method=json
-
-    # Create admin user - use the correct syntax
-    filebrowser users add admin --password=admin --perm.admin=true --database="\${DB_PATH}"
-
-    printf "Database initialized with user: admin / admin\n"
-else
-    printf "Using existing filebrowser database\n"
-    # Update config in case port/folder changed
-    filebrowser config set --database="\${DB_PATH}" --address=0.0.0.0 --port=\${PORT} --root=\${FOLDER}
-fi
+# Create a simple config file instead of using CLI
+cat > /var/lib/filebrowser/.filebrowser.json <<JSONEOF
+{
+  "port": \${PORT},
+  "baseURL": "",
+  "address": "0.0.0.0",
+  "log": "stdout",
+  "database": "\${DB_PATH}",
+  "root": "\${FOLDER}"
+}
+JSONEOF
 
 printf "Starting filebrowser...\n\n"
 printf "Serving \${FOLDER} at http://localhost:\${PORT}\n\n"
-printf "Login: admin / admin\n\n"
+printf "Default login: admin / admin\n\n"
 
-# Start filebrowser
-filebrowser --database="\${DB_PATH}" >>\${LOG_PATH} 2>&1 &
+# Start filebrowser with config file - it will create default admin/admin user
+cd /var/lib/filebrowser
+filebrowser -c .filebrowser.json >>\${LOG_PATH} 2>&1 &
 
 printf "Logs at \${LOG_PATH}\n\n"
 EOF
