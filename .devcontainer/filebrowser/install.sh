@@ -19,44 +19,37 @@ if ! command -v filebrowser &>/dev/null; then
 	rm /tmp/filebrowser.tar.gz
 fi
 
-# Create data directory with proper permissions
-sudo mkdir -p /var/lib/filebrowser
-sudo chmod 777 /var/lib/filebrowser
-
-# Create entrypoint.
+# Create entrypoint - Fixed for noauth to work properly
 cat >/usr/local/bin/filebrowser-entrypoint <<EOF
 #!/usr/bin/env bash
 
 PORT="${PORT}"
 FOLDER="${FOLDER:-}"
 FOLDER="\${FOLDER:-\$(pwd)}"
+BASEURL="${BASEURL:-}"
 LOG_PATH=/tmp/filebrowser.log
-DB_PATH=/var/lib/filebrowser/filebrowser.db
+export FB_DATABASE="\${HOME}/.filebrowser.db"
 
 printf "Configuring filebrowser\n\n"
 
-# Always start fresh - delete old database
-rm -f "\${DB_PATH}" 2>/dev/null || true
+# IMPORTANT: Always remove existing database to ensure noauth works properly
+# The noauth setting only takes effect on fresh database initialization
+if [[ -f "\${FB_DATABASE}" ]]; then
+	printf "Removing existing filebrowser database to reconfigure...\n"
+	rm -f "\${FB_DATABASE}"
+fi
 
-# Create a simple config file instead of using CLI
-cat > /var/lib/filebrowser/.filebrowser.json <<JSONEOF
-{
-  "port": \${PORT},
-  "baseURL": "",
-  "address": "0.0.0.0",
-  "log": "stdout",
-  "database": "\${DB_PATH}",
-  "root": "\${FOLDER}"
-}
-JSONEOF
+# Initialize fresh database with noauth from the start
+filebrowser config init --auth.method=noauth >>\${LOG_PATH} 2>&1
+filebrowser users add admin "" --perm.admin=true --viewMode=mosaic >>\${LOG_PATH} 2>&1
+filebrowser config set --baseurl=\${BASEURL} --port=\${PORT} --auth.method=noauth --root=\${FOLDER} >>\${LOG_PATH} 2>&1
 
 printf "Starting filebrowser...\n\n"
-printf "Serving \${FOLDER} at http://localhost:\${PORT}\n\n"
-printf "Default login: admin / admin\n\n"
 
-# Start filebrowser with config file - it will create default admin/admin user
-cd /var/lib/filebrowser
-filebrowser -c .filebrowser.json >>\${LOG_PATH} 2>&1 &
+printf "Serving \${FOLDER} at http://localhost:\${PORT}\n\n"
+
+# Start with FB_NOAUTH=true for extra safety
+FB_NOAUTH=true filebrowser >>\${LOG_PATH} 2>&1 &
 
 printf "Logs at \${LOG_PATH}\n\n"
 EOF
