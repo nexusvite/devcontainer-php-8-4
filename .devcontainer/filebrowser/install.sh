@@ -23,33 +23,27 @@ fi
 cat >/usr/local/bin/filebrowser-entrypoint <<EOF
 #!/usr/bin/env bash
 
-PORT="${PORT:-13339}"
+PORT="${PORT}"
 FOLDER="${FOLDER:-}"
 FOLDER="\${FOLDER:-\$(pwd)}"
 BASEURL="${BASEURL:-}"
 LOG_PATH=/tmp/filebrowser.log
 export FB_DATABASE="\${HOME}/.filebrowser.db"
 
-# Ensure log file is writable
-touch "\${LOG_PATH}" 2>/dev/null || sudo touch "\${LOG_PATH}"
-chmod 666 "\${LOG_PATH}" 2>/dev/null || sudo chmod 666 "\${LOG_PATH}"
-
 printf "Configuring filebrowser\n\n"
 
-# Remove old database to ensure clean config
-rm -f "\${FB_DATABASE}" 2>/dev/null || true
+# Check if filebrowser db exists.
+if [[ ! -f "\${FB_DATABASE}" ]]; then
+	filebrowser config init >>\${LOG_PATH} 2>&1
+	filebrowser users add admin "" --perm.admin=true --viewMode=mosaic >>\${LOG_PATH} 2>&1
+fi
 
-# Initialize fresh database
-filebrowser config init >>\${LOG_PATH} 2>&1
-filebrowser users add admin "" --perm.admin=true --viewMode=mosaic >>\${LOG_PATH} 2>&1
-
-# Configure filebrowser - bind to all interfaces
-filebrowser config set --address=0.0.0.0 --port=\${PORT} --baseurl="\${BASEURL}" --auth.method=noauth --root=\${FOLDER} >>\${LOG_PATH} 2>&1
+filebrowser config set --baseurl=\${BASEURL} --port=\${PORT} --auth.method=noauth --root=\${FOLDER} >>\${LOG_PATH} 2>&1
 
 printf "Starting filebrowser...\n\n"
-printf "Serving \${FOLDER} at http://0.0.0.0:\${PORT}\n\n"
 
-# Start filebrowser
+printf "Serving \${FOLDER} at http://localhost:\${PORT}\n\n"
+
 filebrowser >>\${LOG_PATH} 2>&1 &
 
 printf "Logs at \${LOG_PATH}\n\n"

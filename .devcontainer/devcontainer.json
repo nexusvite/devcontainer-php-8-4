@@ -60,7 +60,7 @@
 					"url": "zed://ssh/${localEnv:CODER_WORKSPACE_AGENT_NAME}.${localEnv:CODER_WORKSPACE_NAME}.${localEnv:CODER_WORKSPACE_OWNER_NAME}.coder${containerWorkspaceFolder}",
 					"external": true,
 					"icon": "/icon/zed.svg",
-					"order": 3
+					"order": 5
 				},
 				{
 					"slug": "code-server",
@@ -72,30 +72,6 @@
 					"order": 4,
 					"healthCheck": {
 						"url": "http://${localEnv:FEATURE_CODE_SERVER_OPTION_HOST:127.0.0.1}:${localEnv:FEATURE_CODE_SERVER_OPTION_PORT:13337}/healthz",
-						"interval": 5,
-						"threshold": 2
-					}
-				},
-				{
-					"slug": "filebrowser",
-					"displayName": "File Browser",
-					"url": "http://${localEnv:FEATURE_FILEBROWSER_OPTION_HOST:127.0.0.1}:${localEnv:FEATURE_FILEBROWSER_OPTION_PORT:13339}",
-					"icon": "/icon/filebrowser.svg",
-					"order": 5,
-					"healthCheck": {
-						"url": "http://${localEnv:FEATURE_FILEBROWSER_OPTION_HOST:127.0.0.1}:${localEnv:FEATURE_FILEBROWSER_OPTION_PORT:13339}/health",
-						"interval": 5,
-						"threshold": 2
-					}
-				},
-				{
-					"slug": "phpmyadmin",
-					"displayName": "phpMyAdmin",
-					"url": "http://${localEnv:FEATURE_PHPMYADMIN_OPTION_HOST:127.0.0.1}:${localEnv:FEATURE_PHPMYADMIN_OPTION_PORT:8081}",
-					"icon": "/icon/database.svg",
-					"order": 6,
-					"healthCheck": {
-						"url": "http://${localEnv:FEATURE_PHPMYADMIN_OPTION_HOST:127.0.0.1}:${localEnv:FEATURE_PHPMYADMIN_OPTION_PORT:8081}",
 						"interval": 5,
 						"threshold": 2
 					}
