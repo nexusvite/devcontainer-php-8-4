@@ -7,8 +7,8 @@ RESET='\033[0m'
 
 printf "%sInstalling phpMyAdmin%s\n\n" "${BOLD}" "${RESET}"
 
-# phpMyAdmin version
-VERSION="5.2.1"
+# phpMyAdmin version - use 5.2.2 for PHP 8.4 compatibility
+VERSION="5.2.2"
 INSTALL_DIR="/opt/phpmyadmin"
 
 # Check if phpMyAdmin is already installed
@@ -32,48 +32,65 @@ if [ ! -d "${INSTALL_DIR}" ]; then
     echo "phpMyAdmin installed to ${INSTALL_DIR}"
 fi
 
-# Create configuration file
+# Create configuration file with error suppression for PHP 8.4
 sudo tee ${INSTALL_DIR}/config.inc.php > /dev/null <<'PHPCONFIG'
 <?php
+// Suppress deprecation warnings for PHP 8.4 compatibility
+error_reporting(E_ALL & ~E_DEPRECATED & ~E_STRICT);
+
 $cfg['blowfish_secret'] = 'devcontainer-phpmyadmin-secret-key-32ch';
 
 $i = 0;
 $i++;
 
-$cfg['Servers'][$i]['host'] = getenv('PMA_HOST') ?: 'localhost';
+// Force TCP connection instead of socket
+$cfg['Servers'][$i]['host'] = getenv('PMA_HOST') ?: '127.0.0.1';
 $cfg['Servers'][$i]['port'] = getenv('PMA_PORT') ?: '3306';
-$cfg['Servers'][$i]['auth_type'] = 'cookie';
+$cfg['Servers'][$i]['socket'] = '';
+$cfg['Servers'][$i]['connect_type'] = 'tcp';
+
+// Auto-login configuration
+$cfg['Servers'][$i]['auth_type'] = 'config';
+$cfg['Servers'][$i]['user'] = 'root';
+$cfg['Servers'][$i]['password'] = 'mariadb';
 $cfg['Servers'][$i]['AllowNoPassword'] = true;
 $cfg['Servers'][$i]['compress'] = false;
 
 $cfg['TempDir'] = '/opt/phpmyadmin/tmp';
 $cfg['UploadDir'] = '';
 $cfg['SaveDir'] = '';
+
+// Hide deprecation warnings in output
+$cfg['SendErrorReports'] = 'never';
 PHPCONFIG
 
 # Create entrypoint script
-cat | sudo tee /usr/local/bin/phpmyadmin-entrypoint > /dev/null <<EOF
+cat | sudo tee /usr/local/bin/phpmyadmin-entrypoint > /dev/null <<'EOF'
 #!/usr/bin/env bash
 
 PORT="${PORT:-8081}"
-DB_HOST="${DBHOST:-localhost}"
+DB_HOST="${DBHOST:-127.0.0.1}"
 DB_PORT="${DBPORT:-3306}"
-LOG_PATH=/tmp/phpmyadmin.log
+LOG_PATH="/tmp/phpmyadmin.log"
 INSTALL_DIR="/opt/phpmyadmin"
 
-export PMA_HOST="\${DB_HOST}"
-export PMA_PORT="\${DB_PORT}"
+# Ensure log file exists and is writable
+touch "${LOG_PATH}" 2>/dev/null || sudo touch "${LOG_PATH}"
+chmod 666 "${LOG_PATH}" 2>/dev/null || sudo chmod 666 "${LOG_PATH}"
+
+export PMA_HOST="${DB_HOST}"
+export PMA_PORT="${DB_PORT}"
 
 printf "Starting phpMyAdmin...\n"
-printf "Port: %s\n" "\${PORT}"
-printf "Database Host: %s:%s\n" "\${DB_HOST}" "\${DB_PORT}"
+printf "Port: %s\n" "${PORT}"
+printf "Database Host: %s:%s\n" "${DB_HOST}" "${DB_PORT}"
 
-# Start PHP built-in server for phpMyAdmin
-cd \${INSTALL_DIR}
-nohup php -S 0.0.0.0:\${PORT} >> "\${LOG_PATH}" 2>&1 &
+# Start PHP built-in server for phpMyAdmin with error suppression
+cd ${INSTALL_DIR}
+nohup php -d error_reporting="E_ALL & ~E_DEPRECATED & ~E_STRICT" -S 0.0.0.0:${PORT} >> "${LOG_PATH}" 2>&1 &
 
-printf "phpMyAdmin started at http://localhost:%s\n" "\${PORT}"
-printf "Logs at %s\n\n" "\${LOG_PATH}"
+printf "phpMyAdmin started at http://localhost:%s\n" "${PORT}"
+printf "Logs at %s\n\n" "${LOG_PATH}"
 EOF
 
 sudo chmod +x /usr/local/bin/phpmyadmin-entrypoint

@@ -17,7 +17,7 @@
 		},
 		"./phpmyadmin": {
 			"port": "8081",
-			"dbHost": "localhost",
+			"dbHost": "127.0.0.1",
 			"dbPort": "3306"
 		}
 	},
