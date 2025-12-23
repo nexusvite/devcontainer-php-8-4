@@ -19,6 +19,10 @@ if ! command -v filebrowser &>/dev/null; then
 	rm /tmp/filebrowser.tar.gz
 fi
 
+# Create data directory with proper permissions
+sudo mkdir -p /var/lib/filebrowser
+sudo chmod 777 /var/lib/filebrowser
+
 # Create entrypoint.
 cat >/usr/local/bin/filebrowser-entrypoint <<EOF
 #!/usr/bin/env bash
@@ -28,23 +32,28 @@ FOLDER="${FOLDER:-}"
 FOLDER="\${FOLDER:-\$(pwd)}"
 BASEURL="${BASEURL:-}"
 LOG_PATH=/tmp/filebrowser.log
-export FB_DATABASE="\${HOME}/.filebrowser.db"
+DB_PATH=/var/lib/filebrowser/filebrowser.db
 
 printf "Configuring filebrowser\n\n"
 
-# Check if filebrowser db exists.
-if [[ ! -f "\${FB_DATABASE}" ]]; then
-	filebrowser config init >>\${LOG_PATH} 2>&1
-	filebrowser users add admin "" --perm.admin=true --viewMode=mosaic >>\${LOG_PATH} 2>&1
-fi
+# Remove existing database to ensure clean config
+rm -f "\${DB_PATH}" 2>/dev/null || true
 
-filebrowser config set --baseurl=\${BASEURL} --port=\${PORT} --auth.method=noauth --root=\${FOLDER} >>\${LOG_PATH} 2>&1
+# Initialize fresh database with explicit database path
+filebrowser config init --database="\${DB_PATH}" >>\${LOG_PATH} 2>&1
+
+# Create admin user with password
+filebrowser users add admin admin --perm.admin=true --database="\${DB_PATH}" >>\${LOG_PATH} 2>&1
+
+# Configure filebrowser
+filebrowser config set --database="\${DB_PATH}" --address=0.0.0.0 --port=\${PORT} --root=\${FOLDER} >>\${LOG_PATH} 2>&1
 
 printf "Starting filebrowser...\n\n"
-
 printf "Serving \${FOLDER} at http://localhost:\${PORT}\n\n"
+printf "Login: admin / admin\n\n"
 
-filebrowser >>\${LOG_PATH} 2>&1 &
+# Start filebrowser with explicit database path
+filebrowser --database="\${DB_PATH}" >>\${LOG_PATH} 2>&1 &
 
 printf "Logs at \${LOG_PATH}\n\n"
 EOF
