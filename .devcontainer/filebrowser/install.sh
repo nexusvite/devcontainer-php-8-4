@@ -36,23 +36,31 @@ DB_PATH=/var/lib/filebrowser/filebrowser.db
 
 printf "Configuring filebrowser\n\n"
 
-# Remove existing database to ensure clean config
-rm -f "\${DB_PATH}" 2>/dev/null || true
+# Only initialize if database doesn't exist
+if [[ ! -f "\${DB_PATH}" ]]; then
+    printf "Initializing new filebrowser database...\n"
 
-# Initialize fresh database with explicit database path
-filebrowser config init --database="\${DB_PATH}" >>\${LOG_PATH} 2>&1
+    # Initialize database
+    filebrowser config init --database="\${DB_PATH}"
 
-# Create admin user with password
-filebrowser users add admin admin --perm.admin=true --database="\${DB_PATH}" >>\${LOG_PATH} 2>&1
+    # Configure settings
+    filebrowser config set --database="\${DB_PATH}" --address=0.0.0.0 --port=\${PORT} --root=\${FOLDER} --auth.method=json
 
-# Configure filebrowser
-filebrowser config set --database="\${DB_PATH}" --address=0.0.0.0 --port=\${PORT} --root=\${FOLDER} >>\${LOG_PATH} 2>&1
+    # Create admin user - use the correct syntax
+    filebrowser users add admin --password=admin --perm.admin=true --database="\${DB_PATH}"
+
+    printf "Database initialized with user: admin / admin\n"
+else
+    printf "Using existing filebrowser database\n"
+    # Update config in case port/folder changed
+    filebrowser config set --database="\${DB_PATH}" --address=0.0.0.0 --port=\${PORT} --root=\${FOLDER}
+fi
 
 printf "Starting filebrowser...\n\n"
 printf "Serving \${FOLDER} at http://localhost:\${PORT}\n\n"
 printf "Login: admin / admin\n\n"
 
-# Start filebrowser with explicit database path
+# Start filebrowser
 filebrowser --database="\${DB_PATH}" >>\${LOG_PATH} 2>&1 &
 
 printf "Logs at \${LOG_PATH}\n\n"
