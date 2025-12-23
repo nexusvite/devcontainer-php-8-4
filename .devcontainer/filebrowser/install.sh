@@ -19,62 +19,35 @@ if ! command -v filebrowser &>/dev/null; then
 	rm /tmp/filebrowser.tar.gz
 fi
 
-# Create entrypoint - Using noauth with explicit database
+# Create entrypoint - Based on coder version with noauth fix
 cat >/usr/local/bin/filebrowser-entrypoint <<EOF
 #!/usr/bin/env bash
 
 PORT="${PORT}"
 FOLDER="${FOLDER:-}"
 FOLDER="\${FOLDER:-\$(pwd)}"
+BASEURL="${BASEURL:-}"
 LOG_PATH=/tmp/filebrowser.log
-DB_PATH="/tmp/filebrowser.db"
+export FB_DATABASE="/tmp/filebrowser.db"
 
-echo "=== Filebrowser Entrypoint ===" > \${LOG_PATH}
-echo "PORT: \${PORT}" >> \${LOG_PATH}
-echo "FOLDER: \${FOLDER}" >> \${LOG_PATH}
-echo "DB_PATH: \${DB_PATH}" >> \${LOG_PATH}
+printf "Configuring filebrowser\n\n"
 
-printf "Configuring filebrowser\n"
-printf "Database: \${DB_PATH}\n"
-printf "Port: \${PORT}\n"
-printf "Folder: \${FOLDER}\n"
+# Always remove existing database to ensure noauth works
+rm -f "\${FB_DATABASE}"
 
-# Kill any existing filebrowser process
-pkill -f filebrowser 2>/dev/null || true
-sleep 1
+# Initialize fresh database
+filebrowser config init >>\${LOG_PATH} 2>&1
+filebrowser users add admin "" --perm.admin=true --viewMode=mosaic >>\${LOG_PATH} 2>&1
 
-# Remove existing database for clean start
-rm -f "\${DB_PATH}"
+# Set noauth and other config
+filebrowser config set --auth.method=noauth --baseurl=\${BASEURL} --port=\${PORT} --root=\${FOLDER} >>\${LOG_PATH} 2>&1
 
-# Initialize database
-echo "Initializing database..." >> \${LOG_PATH}
-filebrowser config init --database="\${DB_PATH}" 2>>\${LOG_PATH}
+printf "Starting filebrowser...\n\n"
+printf "Serving \${FOLDER} at http://localhost:\${PORT}\n\n"
 
-# Add user with ID 1
-echo "Adding admin user..." >> \${LOG_PATH}
-filebrowser --database="\${DB_PATH}" users add admin "" --perm.admin=true 2>>\${LOG_PATH}
+filebrowser >>\${LOG_PATH} 2>&1 &
 
-# Set noauth
-echo "Setting noauth..." >> \${LOG_PATH}
-filebrowser --database="\${DB_PATH}" config set --auth.method=noauth 2>>\${LOG_PATH}
-
-# Set other config
-echo "Setting port and root..." >> \${LOG_PATH}
-filebrowser --database="\${DB_PATH}" config set --port=\${PORT} --root="\${FOLDER}" --address=0.0.0.0 2>>\${LOG_PATH}
-
-# Verify config
-echo "Current config:" >> \${LOG_PATH}
-filebrowser --database="\${DB_PATH}" config cat 2>>\${LOG_PATH}
-
-printf "Starting filebrowser...\n"
-printf "Serving \${FOLDER} at http://localhost:\${PORT}\n"
-
-# Start filebrowser
-echo "Starting filebrowser..." >> \${LOG_PATH}
-filebrowser --database="\${DB_PATH}" 2>>\${LOG_PATH} &
-
-echo "Filebrowser PID: \$!" >> \${LOG_PATH}
-printf "Logs at \${LOG_PATH}\n"
+printf "Logs at \${LOG_PATH}\n\n"
 EOF
 
 chmod +x /usr/local/bin/filebrowser-entrypoint
