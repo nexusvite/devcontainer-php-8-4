@@ -6,6 +6,9 @@
 	"service": "app",
 	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
 
+	// Generate .env file with workspace name before docker-compose runs
+	"initializeCommand": "cd .devcontainer && echo \"DB_NAME=${localWorkspaceFolderBasename}\" > .env && echo \"DB_USER=root\" >> .env && echo \"DB_PASSWORD=mariadb\" >> .env",
+
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	"features": {
 		"ghcr.io/coder/devcontainer-features/code-server:1": {
