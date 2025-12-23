@@ -6,8 +6,8 @@
 	"service": "app",
 	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
 
-	// Generate .env file with workspace name before docker-compose runs
-	"initializeCommand": "cd .devcontainer && echo \"DB_NAME=${localWorkspaceFolderBasename}\" > .env && echo \"DB_USER=root\" >> .env && echo \"DB_PASSWORD=mariadb\" >> .env",
+	// Generate .env file with Coder workspace name (or folder name as fallback) before docker-compose runs
+	"initializeCommand": "cd .devcontainer && echo \"DB_NAME=${CODER_WORKSPACE_NAME:-${localWorkspaceFolderBasename}}\" > .env && echo \"DB_USER=root\" >> .env && echo \"DB_PASSWORD=mariadb\" >> .env",
 
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	"features": {
