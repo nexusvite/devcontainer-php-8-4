@@ -19,7 +19,7 @@ if ! command -v filebrowser &>/dev/null; then
 	rm /tmp/filebrowser.tar.gz
 fi
 
-# Create entrypoint - Fixed for noauth to work properly
+# Create entrypoint - Using --noauth flag directly on command line
 cat >/usr/local/bin/filebrowser-entrypoint <<EOF
 #!/usr/bin/env bash
 
@@ -29,7 +29,7 @@ FOLDER="\${FOLDER:-\$(pwd)}"
 BASEURL="${BASEURL:-}"
 LOG_PATH=/tmp/filebrowser.log
 
-# Use a fixed database path to avoid HOME variable issues
+# Use a fixed database path
 export FB_DATABASE="/tmp/filebrowser.db"
 
 printf "Configuring filebrowser\n\n"
@@ -37,24 +37,21 @@ printf "Database: \${FB_DATABASE}\n"
 printf "Port: \${PORT}\n"
 printf "Folder: \${FOLDER}\n"
 
-# IMPORTANT: Always remove existing database to ensure noauth works properly
+# Remove existing database for clean start
 rm -f "\${FB_DATABASE}"
 
-# Initialize database first (without auth flag - it's not supported on init)
+# Initialize database
 filebrowser config init >>\${LOG_PATH} 2>&1
 
-# Add default admin user with empty password
+# Add default admin user
 filebrowser users add admin "" --perm.admin=true --viewMode=mosaic >>\${LOG_PATH} 2>&1
 
-# Now set the config with noauth - this is the correct way
-filebrowser config set --auth.method=noauth >>\${LOG_PATH} 2>&1
-filebrowser config set --baseurl="\${BASEURL}" --port=\${PORT} --root="\${FOLDER}" >>\${LOG_PATH} 2>&1
-
-printf "Starting filebrowser...\n\n"
+printf "Starting filebrowser with --noauth flag...\n\n"
 printf "Serving \${FOLDER} at http://localhost:\${PORT}\n\n"
 
-# Start filebrowser (noauth is already set in config)
-filebrowser >>\${LOG_PATH} 2>&1 &
+# Start filebrowser with --noauth flag directly on command line
+# This bypasses any database auth settings
+filebrowser --noauth --port=\${PORT} --root="\${FOLDER}" --address=0.0.0.0 >>\${LOG_PATH} 2>&1 &
 
 printf "Logs at \${LOG_PATH}\n\n"
 EOF
