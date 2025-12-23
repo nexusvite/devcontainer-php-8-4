@@ -19,34 +19,33 @@ if ! command -v filebrowser &>/dev/null; then
 	rm /tmp/filebrowser.tar.gz
 fi
 
-# Create entrypoint - Based on coder version with noauth fix
+# Create entrypoint - Pass ALL options on command line to bypass config issues
 cat >/usr/local/bin/filebrowser-entrypoint <<EOF
 #!/usr/bin/env bash
 
 PORT="${PORT}"
 FOLDER="${FOLDER:-}"
 FOLDER="\${FOLDER:-\$(pwd)}"
-BASEURL="${BASEURL:-}"
 LOG_PATH=/tmp/filebrowser.log
-export FB_DATABASE="/tmp/filebrowser.db"
-
-printf "Configuring filebrowser\n\n"
-
-# Always remove existing database to ensure noauth works
-rm -f "\${FB_DATABASE}"
-
-# Initialize fresh database
-filebrowser config init >>\${LOG_PATH} 2>&1
-filebrowser users add admin "" --perm.admin=true --viewMode=mosaic >>\${LOG_PATH} 2>&1
-
-# Set noauth and other config
-filebrowser config set --auth.method=noauth --baseurl=\${BASEURL} --port=\${PORT} --root=\${FOLDER} >>\${LOG_PATH} 2>&1
+DB_PATH="/tmp/filebrowser.db"
 
 printf "Starting filebrowser...\n\n"
-printf "Serving \${FOLDER} at http://localhost:\${PORT}\n\n"
 
-filebrowser >>\${LOG_PATH} 2>&1 &
+# Remove any existing database
+rm -f "\${DB_PATH}"
 
+# Start filebrowser with ALL options on command line
+# --noauth disables authentication completely
+# --database creates a fresh database
+filebrowser \\
+    --noauth \\
+    --database="\${DB_PATH}" \\
+    --address=0.0.0.0 \\
+    --port=\${PORT} \\
+    --root="\${FOLDER}" \\
+    >>\${LOG_PATH} 2>&1 &
+
+printf "Serving \${FOLDER} at http://localhost:\${PORT}\n"
 printf "Logs at \${LOG_PATH}\n\n"
 EOF
 
