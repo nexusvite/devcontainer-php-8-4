@@ -1,0 +1,15 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplaces.schema.json",
+  "marketplaces": [
+    {
+      "name": "claude-plugins-official",
+      "source": "anthropics/claude-plugins-official",
+      "description": "Official Anthropic-managed directory of high quality Claude Code Plugins"
+    },
+    {
+      "name": "claude-code-templates",
+      "source": "davila7/claude-code-templates",
+      "description": "Ready-to-use Claude Code templates organized by workflow"
+    }
+  ]
+}
